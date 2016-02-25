@@ -1,25 +1,240 @@
----
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
----
+================================================================================================================
+title: "Analysis of personal movement using data from a personal activity monitoring device"
+author: "Ezgi"
+date: "2 February 2016"
+output: html_document
+================================================================================================================
+## Project Background
 
+It is now possible to collect a large amount of data about personal movement using activity monitoring devices
+such as a Fitbit, Nike Fuelband, or Jawbone Up. These type of devices are part of the "quantified self" movement
+- a group of enthusiasts who take measurements about themselves regularly to improve their health, to find 
+patterns in their behavior, or because they are tech geeks. But these data remain under-utilized both because 
+the raw data are hard to obtain and there is a lack of statistical methods and software for processing and 
+interpreting the data.
+
+## Data Used in Analysis
+This assignment makes use of data from a personal activity monitoring device. This device collects data at 5 
+minute intervals through out the day. The data consists of two months of data from an anonymous individual 
+collected during the months of October and November, 2012 and include the number of steps taken in 5 minute 
+intervals each day
+
+The variables included in this dataset are:
+
+steps: Number of steps taking in a 5-minute interval (missing values are coded as NA)
+date: The date on which the measurement was taken in YYYY-MM-DD format
+interval: Identifier for the 5-minute interval in which measurement was taken
+The dataset is stored in a comma-separated-value (CSV) file and there are a total of 17,568 observations in this
+dataset.
 
 ## Loading and preprocessing the data
 
+1.The code that is needed to load the data:
+
+```{r, echo=TRUE}
+install.packages("dplyr")
+library(dplyr)
+activity_monitoring <- read.csv("./activity.csv")
+```
+
+Some statistics to understand data: First 6 rows of table, names of the fields, number of rows and columns and 
+dates in the table.
+
+Here is the code:
+```{r, echo=TRUE}
+
+head(activity_monitoring)
+names(activity_monitoring)
+dim(activity_monitoring)
+
+table(activity_monitoring$date)
+```
+
+2.Process/transform the data (if necessary) into a format suitable for your analysis:
+
+A check to see how many missing values in all fields is made. 
+```{r, echo=TRUE}
+steps_na <- which(is.na(activity_monitoring$steps))
+steps_na2 <- length(steps_na)
+
+date_na <- which(is.na(activity_monitoring$date))
+date_na2 <-length(date_na)
+
+interval_na <- which(is.na(activity_monitoring$interval))
+interval_na2 <- length(interval_na)
+```
+
+There are `r steps_na2` missing values in steps field, `r date_na2` missing values in date field and `r interval_na2` 
+in interval field.
 
 
 ## What is mean total number of steps taken per day?
 
+Missing values in the dataset were ignored for this part of the assignment.
+
+1.The code to calculate the total number of steps taken per day:
+
+```{r, echo=TRUE}
+
+activity_monitoring2 <- activity_monitoring
+by_day <- group_by(activity_monitoring2, date)
+day_sum <- summarize(by_day, total_steps_perday = sum(steps, na.rm = TRUE))
+
+```
+
+2.Histogram of the total number of steps taken each day
+
+The code and the histogram:
+
+```{r, echo=TRUE}
+
+hist(day_sum$total_steps_perday, col = "red",main = "Total Number of Steps Taken Each Day",
+                                              xlab ="Total Number of Steps Taken Each Day")
+
+```
+
+3. The mean and median of the total number of steps taken per day
+
+The code to calculate the mean and median of the total number of steps taken per day:
+
+```{r, echo=TRUE}
+
+median_step_per_day <- median(day_sum$total_steps_perday)
+average_step_per_day <- mean(day_sum$total_steps_perday)
+
+```
+
+The mean of the total number of steps taken per day is `r average_step_per_day` and median of the total number 
+of steps taken per day is `r median_step_per_day`.
 
 
 ## What is the average daily activity pattern?
 
+1.Time series plot of the 5-minute interval (x-axis) and the average number of steps taken, averaged across 
+all days (y-axis)
 
+The code and time series plot:
+
+```{r, echo=TRUE}
+
+activity_monitoring3 <- activity_monitoring
+by_interval <- group_by(activity_monitoring2, interval)
+interval_sum <- summarize(by_interval, total_steps_perinterval = sum(steps, na.rm = TRUE))
+
+qplot(interval, total_steps_perinterval,data=interval_sum, color="red")+labs(y="Total steps per interval")+ 
+      labs(title="Average Daily Activity Pattern")+ geom_line()
+
+```
+
+2.Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+
+```{r, echo=TRUE}
+
+max_steps_per_interval <- max(interval_sum$total_steps_perinterval)
+max_interval <- interval_sum[which(interval_sum$total_steps_perinterval==max_steps_per_interval),1]
+
+```
+
+`r max_interval` 5-minute interval contains the maximum number of steps n average across all the days in the
+dataset.
 
 ## Imputing missing values
 
+Note that there are a number of days/intervals where there are missing values (coded as NA). The presence of
+missing days may introduce bias into some calculations or summaries of the data.
+
+1.The total number of missing values in the dataset (i.e. the total number of rows with NAs)
+
+The code to calculate the total number of missing values in the dataset:
+
+```{r, echo=TRUE}
+
+na_values <- activity_monitoring[which(is.na(activity_monitoring$steps)),]
+na_values2 <- nrow(na_values)
+
+```
+
+The total number of missing values in the dataset is `r na_values2`.
+
+2.The strategy chosen for filling in all of the missing values in the dataset is the mean for that 5-minute
+interval
+
+```{r, echo=TRUE}
+
+interval_avg <- summarize(by_interval, total_steps_perinterval = mean(steps, na.rm = TRUE))
+
+```
+
+3.A new dataset that is equal to the original dataset is created but with the missing data filled in with
+the mean for that 5-minute interval.
+
+```{r, echo=TRUE}
+
+activity_monitoring_notna <- left_join(activity_monitoring,interval_avg) 
+activity_monitoring_notna2 <- activity_monitoring_notna[which(is.na(activity_monitoring_notna$steps)),]
+activity_monitoring_notna3 <- activity_monitoring_notna[which(!is.na(activity_monitoring_notna$steps)),] 
+
+activity_monitoring_notna4 <- mutate (activity_monitoring_notna2,steps2= total_steps_perinterval)
+activity_monitoring_notna5 <- select(activity_monitoring_notna4, date,interval,steps2)
+
+activity_monitoring_notna6 <- select(activity_monitoring_notna3, date,interval,steps2=steps)
+
+activity_monitoring_notna7 <- bind_rows(activity_monitoring_notna5,activity_monitoring_notna6)
+
+```
+
+4.The histogram of the total number of steps taken each day and the mean and median total number of steps taken per day
+is calculated.
+
+```{r, echo=TRUE}
+
+activity_monitoring_notna8 <- activity_monitoring_notna7
+by_day2 <- group_by(activity_monitoring_notna8, date)
+day_sum2 <- summarize(by_day2, total_steps_perday = sum(steps2))
+
+hist(day_sum2$total_steps_perday, col = "red",main = "Total Number of Steps Taken Each Day",xlab ="Total Number of Steps 
+     Taken Each Day")
+
+median_step_per_day2 <- median(day_sum2$total_steps_perday)
+average_step_per_day2 <- mean(day_sum2$total_steps_perday)
+
+```
+
+The mean of total number of steps taken per day is `r average_step_per_day2` and median is  `r median_step_per_day2`
+with the missing data filled in .
+
+These values differ from the estimates from the first part of the assignment. Both median and mean are higher than those
+from the data with missing values. Also in the data without missing values the mean and median have the same value.
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+1. A new factor variable is created in the dataset with two levels - "weekday" and "weekend" indicating whether a given 
+date is a weekday or weekend day.
+
+The code is below:
+```{r, echo=TRUE}
+
+activity_monitoring_notna7$date2 <-as.Date(levels(activity_monitoring_notna7$date), format = "%Y-%m-%d")
+activity_monitoring_notna9 <- mutate(activity_monitoring_notna7,if_weekend = 
+                                     factor(weekdays(date2) =="Sunday"| weekdays(date2) =="Saturday", 
+                                            labels = c("weekday", "weekend")))
+
+```
+
+
+2.A panel plot containing a time series plot of the 5-minute interval (x-axis) and the average number of steps taken, 
+averaged across all weekday days or weekend days (y-axis) is made. 
+
+First the code and then the graph:
+```{r, echo=TRUE}
+
+install.packages("lattice")
+library(lattice)
+xyplot(interval ~ steps2 | if_weekend, data = activity_monitoring_notna9, layout = c(5, 1))
+
+```
+
+
+
+
